@@ -13,6 +13,7 @@ const inputElevation = document.querySelector('.form__input--elevation');
 class Workout{
     date = new Date();
     id = (Date.now()+'').slice(-10);
+    // clicks = 0;
 
     constructor(coords,distance,duration){
         this.coords = coords; //[lat,long]
@@ -23,6 +24,10 @@ class Workout{
             const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             this.description = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${months[this.date.getMonth()]} ${this.date.getDate()}`
         }
+
+    // _click(){
+    //     this.clicks++;
+    // }
 }
 class Running extends Workout{
     type = "running"
@@ -61,11 +66,20 @@ class App{
     #map; //private instance properties
     #mapEvent;
     #workouts = [];
+    #zoomLevel=13;
+    
     constructor() {
+        // get users position
         this._getPosition();
+
+        // get data from local storage
+        this._getLocalStorage();
+
+        // attach event handlers
         form.addEventListener('submit',this._newWorkout.bind(this));
         
         inputType.addEventListener('change',this._toggleElevationField);
+        containerWorkouts.addEventListener('click',this._movetoPopup.bind(this));
 
     }
 
@@ -85,7 +99,7 @@ class App{
             console.log(`https://www.google.com/maps/@${latitude},${longitude}`);
     
             const coords = [latitude,longitude];
-            this.#map = L.map('map').setView(coords, 13);
+            this.#map = L.map('map').setView(coords, this.#zoomLevel);
             // console.log(map);
     
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -95,6 +109,9 @@ class App{
     
             // handling clicks on map
             this.#map.on('click',this._showForm.bind(this));
+            this.#workouts.forEach(work=>{
+                this._renderWorkoutMarker(work);
+            })
                 
     }
 
@@ -173,6 +190,8 @@ class App{
         // hide the form and clear the input fields
         this._hideForm();
         
+        // set the local storage to all the workouts
+        this._setLocalStorage();
         
     }
     _renderWorkoutMarker(workout){
@@ -235,6 +254,40 @@ class App{
 
         form.insertAdjacentHTML('afterend',html)
     }
+    _movetoPopup(e){
+        const workoutEl = e.target.closest('.workout');
+        if(!workoutEl) return 
+
+        const workout = this.#workouts.find(
+            work => work.id ===workoutEl.dataset.id
+        )
+        this.#map.setView(workout.coords,this.#zoomLevel,{
+            animate:true,
+            pan:{
+                duration:1
+            }
+        })
+        console.log(workout);
+        // workout._click();
+    }
+    _setLocalStorage(){
+        localStorage.setItem('workouts',JSON.stringify(this.#workouts));
+    }
+
+    _getLocalStorage(){
+        const data = JSON.parse(localStorage.getItem('workouts'));
+        // console.log(data)
+
+        if(!data) return;
+        this.#workouts = data;
+
+        this.#workouts.forEach(work=>{
+            this._renderWorkout(work);
+        })
+    }
+    reset(){
+        localStorage.removeItem('workouts');
+        location.reload();
+    }
 }
 const app = new App();
-
